@@ -1,0 +1,44 @@
+What Happens to the Goal? -- code release
+Copyright (c) 2026 Julia Barth, Armin Sommer, Kunvar Thaman, Jannik Schilling
+
+This repository contains original code plus the third-party material listed below.
+
+1. Files derived from third-party code (included in this repository)
+
+   src/gm_robotics/ppo_rgb_gm.py, src/gm_robotics/ppo_rgb_gm_arch.py
+     Modified from ManiSkill, examples/baselines/ppo/ppo_rgb.py
+     https://github.com/haosulab/ManiSkill -- Apache License 2.0.
+     Changes: GM/control variant flag, CSV logging, resume, and (in _arch) CNN/LSTM/ViT encoders.
+     ManiSkill's PPO baseline is itself based on CleanRL (https://github.com/vwxyzjn/cleanrl),
+     Copyright (c) 2019 CleanRL developers, MIT License.
+     A copy of the Apache License 2.0 is in LICENSES/Apache-2.0.txt.
+
+   external/patches/procgenAISC.patch
+     Patch (with upstream context lines) against JacobPfau/procgenAISC, a fork of openai/procgen.
+     Copyright (c) 2019 OpenAI, MIT License.
+
+   external/patches/colour-shape-procgenAISC.patch
+     Patch against KarolisRam/procgenAISC (submodule of KarolisRam/colour-shape-goal-misgeneralization),
+     a fork of openai/procgen. Copyright (c) 2019 OpenAI, MIT License; colour-shape additions
+     Copyright (c) 2023 Karolis Ramanauskas, MIT License. The added item textures are original
+     single-colour sprites placed in procgen's Kenney asset folder (Kenney assets are CC0).
+
+2. Third-party code that is NOT included (cloned at pinned commits by scripts/procgen/setup_external.py)
+
+   - JacobPfau/procgenAISC (MIT)
+   - KarolisRam/colour-shape-goal-misgeneralization (MIT) and its procgenAISC submodule (MIT)
+   - jbkjr/train-procgen-pytorch (Langosco et al.; fork of joonleesky/train-procgen-pytorch) -- no license file
+   - KarolisRam/train-procgen (submodule of the colour-shape repository) -- no license file
+   The two train-procgen repositories carry no license, so they are not redistributed here.
+   The Attribute Maze trainers in src/gm_geometry/training/colour_shape/ and
+   scripts/procgen/arch/ call into, and follow the structure of, these trainers (argument parsing,
+   environment and logger construction, PPO agent setup) and reimplement the IMPALA network with
+   the same parameter names so that the trained checkpoints load.
+
+3. Libraries used as dependencies (not included)
+   ManiSkill 3 / SAPIEN (Apache-2.0), Isaac Lab (BSD-3-Clause), Isaac Sim (NVIDIA license),
+   PyTorch (BSD-style), gym3 (MIT), and the Python packages listed in pyproject.toml.
+
+4. Data and checkpoints
+   The published Attribute Maze checkpoints of Ramanauskas & Simsek are on Zenodo
+   (https://zenodo.org/records/10200914) and are not redistributed here.

@@ -1,0 +1,27 @@
+.DS_Store
+.idea/
+.vscode/
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+.venv*/
+.ruff_cache/
+.pytest_cache/
+.env
+
+# Checkpoints, data, results and rendered figures are released separately.
+*.pt
+*.pth
+*.ckpt
+wandb/
+/data/
+/external/*/
+!/external/patches/
+
+# Old layout, kept out of the tree.
+/procgen/
+/robotics/
+paper/
+proposals/
+overnight/

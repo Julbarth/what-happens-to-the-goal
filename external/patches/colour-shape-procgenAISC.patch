@@ -1,0 +1,1161 @@
+diff --git a/procgen/CMakeLists.txt b/procgen/CMakeLists.txt
+index 2c751e3..be4eff4 100644
+--- a/procgen/CMakeLists.txt
++++ b/procgen/CMakeLists.txt
+@@ -16,7 +16,7 @@ if(APPLE)
+   # clang defaults to 20 errors, but usually only the first one is useful
+   add_compile_options(-ferror-limit=1)
+   # only produce errors on mac where development is done
+-  add_compile_options(-Werror -Wextra -Wshadow -Wall -Wformat=2 -Wundef -Wvla -Wmissing-include-dirs -Wnon-virtual-dtor -Wno-unused-parameter)
++  add_compile_options(-Wextra -Wshadow -Wall -Wformat=2 -Wundef -Wvla -Wmissing-include-dirs -Wnon-virtual-dtor -Wno-unused-parameter)
+ endif()
+ 
+ if(MSVC)
+@@ -71,6 +71,7 @@ add_library(env
+   src/games/maze_redline_yellowgem.cpp
+   src/games/maze_redline_yellowgem_test.cpp
+   src/games/maze_colorsobjects_duel.cpp
++  src/games/maze_relation_duel.cpp
+   src/games/maze_yellowstar_redgem.cpp
+   src/games/miner.cpp
+   src/games/ninja.cpp
+diff --git a/procgen/build.py b/procgen/build.py
+index ebe1ddd..4c4de95 100644
+--- a/procgen/build.py
++++ b/procgen/build.py
+@@ -100,6 +100,20 @@ def build(package=False, debug=False):
+     if debug:
+         build_type = "debug"
+ 
++    # Reuse an existing libenv when present (avoids -march=native / apple-m1 rebuild
++    # failures on Apple Silicon). Set PROCGEN_FORCE_REBUILD=1 to rebuild.
++    lib_name = "libenv.dll" if platform.system() == "Windows" else (
++        "libenv.dylib" if platform.system() == "Darwin" else "libenv.so"
++    )
++    existing_lib = os.path.join(build_dir, build_type, lib_name)
++    if (
++        not package
++        and os.environ.get("PROCGEN_FORCE_REBUILD") != "1"
++        and os.path.isfile(existing_lib)
++    ):
++        global_builds.add(build_type)
++        return os.path.join(build_dir, build_type)
++
+     with chdir(build_dir), global_build_lock:
+         # check if we have built yet in this process
+         if build_type not in global_builds:
+diff --git a/procgen/data/assets/kenney/Items/pure_brown_line_diag.png b/procgen/data/assets/kenney/Items/pure_brown_line_diag.png
+new file mode 100644
+index 0000000000000000000000000000000000000000..d6d881b031191fa2f990e67abdbae86b01289db2
+GIT binary patch
+literal 722
+zcmeAS@N?(olHy`uVBq!ia0vp^4Is?H1|$#LC7xzrV4CUa;uumf=k4v&g@+tOSOXQ<
+zl9ZGVDJUf=vB#7rPVZ&pRP3C2{jRq|lHu|nXVP~|-h8=X|2?}hoA_<X>$jWT_LcpU
+z-XE>V;M}a!bco>?-#QL1ri#)4*8q+KR}P9eGBUj9Tf||-W^nyM=K^PjV*XhiR!keN
+zBy=wLTjtF_iG%A5%f8th4;UuF@vW@yovN{dCf_&}nDXr78I=;gJvVRQsQCL^P=hI~
+z{6A|)!{x*K8<i5il*l=-e3hQVA>{bh?JP^zg1p7cn_L4nPrt_G60m-{c(Y5uYR}b;
+zN-Hiud72=2<;B{+3`#HdZ#Qr0SnxjWrl3kw-RxZN863ZIuGuy!y;y(KytQk=da;|L
+zI!$#^Ing^feq~%NW>m`9f0VziW5L@nOG%Zcvgo%NGdOPLT;1HLl(GIQe|r}LpF-y#
+z!LsM4zrFRo((29n*=<hD9wjUl3?(c~4ax!xGK~xmI9M3m6&Ng-7!L??F!VVv6i{Dk
+z_5O{v=QcNf=#&4U@<AKZ61NGzxfr@0{H|kSQ2J3T&v-!KPMki2KvVT~PKKrj7hkh7
+mIDB|h%JgE7B8&6+dd8x}S9^=kw7vzVRR&L2KbLh*2~7aNN$>#x
+
+literal 0
+HcmV?d00001
+
+diff --git a/procgen/data/assets/kenney/Items/pure_coral_line_diag.png b/procgen/data/assets/kenney/Items/pure_coral_line_diag.png
+new file mode 100644
+index 0000000000000000000000000000000000000000..66bf4186a7acb1045783261d4788d892e33fe982
+GIT binary patch
+literal 718
+zcmeAS@N?(olHy`uVBq!ia0vp^4Is?H1|$#LC7xzrV4CXb;uumf=k4v&g@+tOSOZ;J
+zSR5l*9NUWSw#J&VskEr1#g*$bb{?Jc$awxkgUugnr1IsZ^{ywr`+6<y_|oS8Zwj?p
+z60#<^21p#Zb5PXLkzqaGDh@8j2&)-N8VnEaI*K?RXSgP1BUr+b@YYe-(VbzNl#bw*
+z`-QI^g&Z4a9w--PlyMM(VaI4$`;AMqn~vErx*T}>T-$-=%)dWu0*veH?U`H;yn45v
+zL9n3ehj{=?&%ATY9SiCv3p*;UxVvVigW#3iZy_5vvc6r4YT$VF^;6OWj;yU2rU5La
+zQF~-`nxyt_m3LtI`~6#+fZ&(ATGmZ27xGu<atb@nU%N{^faUMjU&{gnzg$(@-Q;?~
+ze|9dnxTAb-m7W93+wDIO3J7kwtEb-Vav^WGEU&QR?6*~B0W5E~{(cxBcz{u5kl-Z`
+zi)6pmod?DaKW{7Bgclqi7+!F&Ft{r)STHdj5aeL!b6_Z7VQNqoV328KctCxrvijue
+zIqA#~dF6koe9*?U&TYbPE{3iLzw4M7lz!C8GaeAQ6Q|E0&{Tb$lcDLs#n-G14j<l>
+iGQHTN$r60Np7H6zw<_*04bKD9DTAl0pUXO@geCxAs_+;9
+
+literal 0
+HcmV?d00001
+
+diff --git a/procgen/data/assets/kenney/Items/pure_indigo_line_diag.png b/procgen/data/assets/kenney/Items/pure_indigo_line_diag.png
+new file mode 100644
+index 0000000000000000000000000000000000000000..deffd97a41df37ebcd31086194882e8827d1224f
+GIT binary patch
+literal 717
+zcmeAS@N?(olHy`uVBq!ia0vp^4Is?H1|$#LC7xzrV4C9T;uumf=k4v2g@+s@SQ8zq
+zo*ZeM)4_k;`bKK9gOjvzeYrei=i!>8MyC^J+{oN<=bij+zUPOpyk2{@ubBP+)yH8R
+z2W}{IFED6W*{t2v#BfhGL{NmupxnSUfZ@O;M-j*44A-P=1WPy)-Z~09x-)E((h=Np
+zzwouAkYnS_14}y@_!QuH!P>t05tl?Aljk!iJ^1!nRDmh2zK*%0;rf30Mx}(WAL1K0
+zENuTuYcRR#KWB6a*nhE8LGVi6C7%Txugog7B3MkTvvnO<zE)Kmda!JrwN*-^$?9wz
+zpO|B>*jsi1$N#$b1eBWgMW?z?;P{ohRX0)T#pclOEL{ushus&^YT9=zC42+NuguN4
+z50zdl_C3$qvEZ+ny@XQJw%borCUD%!-M%<cDPwc&dA6<vd&}%)w3sX!R0atykv-SG
+z_x@*-m^^3ag^VgzOg0QwOpFHvIT-pJ7z$XJ8k7YXWEvSBaIi4AD==74U8?Es{TuV1
+z-*l+B&R-++Llnaj2IUjAtPHLnYV8>r1pn;oXGq|9w_coq<KW`gEDVkx-h5?ZP^kE7
+i#aMDrqG{vv{R~qs7Z!<4)-3@hQwC30KbLh*2~7ak2<;RA
+
+literal 0
+HcmV?d00001
+
+diff --git a/procgen/data/assets/kenney/Items/pure_lime_line_diag.png b/procgen/data/assets/kenney/Items/pure_lime_line_diag.png
+new file mode 100644
+index 0000000000000000000000000000000000000000..75f32b0ea56ab8796c2dc822306edc4e5443c716
+GIT binary patch
+literal 714
+zcmeAS@N?(olHy`uVBq!ia0vp^4Is?H1|$#LC7xzrV4CRZ;uumf=k4v2g@+s@SQA}5
+zPT8|9ZFw#GW|N`9!rqztclS3ON!*t-Gj)ef&Ys@wzmG3Vl$sWopIa7d{bRk{b|;2s
+zY>_Ojj5@M0f+8#*-Yw`_AkeV2S+j|WVH@8f4lA||*B^8)aAv6HpT%LtRB$DsbHU$r
+z?);NDxX!TT`LYx+c*1dR>E9!h)^SMvW)WcAK7T!fpuz9Y(he+p{{7_;VO-t*pULIG
+z%a`{Z1P!Vz`4yUeo%LhsTu|1X#^f5X{b=w(r4=`$vl*3ET)*AzsI=nhs;dryS2DjA
+zZQ#h-l4;+-@hksxn}Fb#yL#45E*J85=W+@=&VRd0J%Hu!*5Atl1ixHW+}-4Q!M{D1
+zTij7zwo1=|<!$+og93tE?rN$xyIjayF3T(IID2lDSpdu1(q9h)1P?H(3=+H~b4J_d
+z`^CV>@pfLwsA9!r!(he4ctDVYq0fP#fQ6|+S%5*Nk>LRc3xm4?g9X*4nl9hJG4J_J
+zhl<PWcAS5>Fsy43e6o+JLFvc7`M{)Cci)}CfaUvjZibcz7fYEM6e_+|F)|43shZ1R
+fmCtwZ&gb}Rf^SSr9JphEX_Ud!)z4*}Q$iB}bO7;I
+
+literal 0
+HcmV?d00001
+
+diff --git a/procgen/data/assets/kenney/Items/pure_magenta_line_diag.png b/procgen/data/assets/kenney/Items/pure_magenta_line_diag.png
+new file mode 100644
+index 0000000000000000000000000000000000000000..1d120f5ef88caa1ab85f657cfb3b75ff6f746319
+GIT binary patch
+literal 714
+zcmeAS@N?(olHy`uVBq!ia0vp^4Is?H1|$#LC7xzrV4CRZ;uumf=k0CJqC*A}tckOO
+z3;&C5FM6dr$%`Z5G3U$o?^F{uUkK-sI+mDtxnTA?dFl4oJHAw9Z$5qNVExw}qD%(n
+zCzLdJ5?(&&TA<KS&K}Cr%CJV(M^J=eL#cr41;d8DZ2l~=OgE}8xLgoySj^_l^0wTv
+zYJy8Zf?7egQUkLG9A~UPtv;>9^}-GH296znYgjuPZqC2Yp!DGDd-nw#5w?HC6`1_|
+z|Fd;9Ts&RLAb2IeOv!^~YqW{5M$<0cd0b+SXYWOE3pnn*7sn&yxHfDpTh{`=)zh0@
+z0~Y)KW^}nwKij;eW5N5fn}RA$b+>c9XK?(=xo+F2^kV&8^VY5f>-lbq>NM3^<wWn`
+z`1RsKF{4t({=@uj9Sh$2SxTxjm07>dn89)D&6UlKN*U`f^S5^~@F{c-65M;Z)aJMC
+z@`q-;ysc~#UT}P1c)`KK;I6=6!Nhn#kb|MmfuVqfsX<wQL8g)60rjQ)>XWPIr87V5
+zmH(mgK^xOLw+X+w7`h((u47_Q`cW&-ctGGzygq|Kllyf}hNcHMU$Zhee0WvL^kR=C
+dOY!-7#)O!Xgyd7^-+^hA!PC{xWt~$(69AsF>F59e
+
+literal 0
+HcmV?d00001
+
+diff --git a/procgen/data/assets/kenney/Items/pure_navy_line_diag.png b/procgen/data/assets/kenney/Items/pure_navy_line_diag.png
+new file mode 100644
+index 0000000000000000000000000000000000000000..012ab38d67a8d9102088ad85a61a19f2d3d7b146
+GIT binary patch
+literal 722
+zcmeAS@N?(olHy`uVBq!ia0vp^4Is?H1|$#LC7xzrV4CUa;uumf=k4v&g@+tOSOXQ<
+zniO=Lly#aE*kj5Qr}r{)Dt6Aie%IR}$#D6PGwHh}Z~iOTb<eKMQhs~#`t4@7eP#co
+z_eU!-I5+Dw9b!1fw~m90siHK%HGt#5m4hOVj12Gj7I9dy8C-wRxxksBn12?B71M?*
+z37rf6mU;6};@~>NvTruW1BOX(d@JjFr)sRA$u~{~rab$2Mx}&r&&?Y+D*pZ!)L;rL
+z|IgadaQX25Mx}%=C2|fdU!~`82syrWJIm6wAaC*VCf9(?)2}hP1gxJf-s}>v+H-ZI
+z(u&JZo+b!hd9n5{gVKxr+s#`#7Q9cpDX7v^H#^sR2FI_QYqpI_FV^2QZ|z#JUhJl*
+zPE%b}PV^3rUl|vR8I>~jALVcBSnxK?Qc|U<Ec$K6431klS2s5*Wvsu--`>T*r_eb_
+zaO}C`Z*RTdX+LM(>^3K6j}n#&h7uO024w*TnMQ^O94rj(3JexZj0Xfc82TI-3aBr&
+zdjCe-bDJAK=*j<3`JjzyiQ9zVTnt?ge%CQEDE+9FXFMQqCr+P1psD&gCqvVNi?3N3
+n96r1$WqPqkk;VCZJ>%K=ujcRj_zIX*85lfW{an^LB{Ts5a?9_?
+
+literal 0
+HcmV?d00001
+
+diff --git a/procgen/data/assets/kenney/Items/pure_olive_line_diag.png b/procgen/data/assets/kenney/Items/pure_olive_line_diag.png
+new file mode 100644
+index 0000000000000000000000000000000000000000..5d0c496728f6b8f2719a49279ef9ff120c498dad
+GIT binary patch
+literal 700
+zcmeAS@N?(olHy`uVBq!ia0vp^4Is?H1|$#LC7xzrU~2YsaSW-L^Y+fkJSIaC*1!j+
+zf1ek=%PQn#>wjbYs%b6nbZVw7{Cno}#!ZP8e|q<Pi>cnb^=9__N9XtEwKC}FZsOo#
+zj@Z3JNrNNd^`fo?0u6h+HJg|i`t%lYSg{pcd(^qWnIT<&7Kas6!PTVB1%Knh^(S#~
+z*>Kv-;&{L?365|5R{ro!H&$@V_xuGM3u^5+gcvuxcR#4qV7g6Gg()ETHjrszE}+EZ
+z;H{jfq;YT7!T>>$ytffMI9~KOxdv?Zt!7kOasAm@1;Hy>*Yg%|yxLN29l>I1Wx}t}
+z^v~KxK&fe;b*hpF%ipqF9y2(8y}2^eLGa7<m(B~7Uaa<B*5rD@e|m3g_kw;sTXBV^
+zZ@d2_ba32yx9;%5bHXOK=C(V#UPvgH=M!~I{`;t41;+^_ha-D}{_IN+j$hrtsA9!r
+z!(he4ctDVYq0fP#fQ6|+S%5*Nk>LRc3xm4?g9X*4nr`pk===PpL&ahKI-wuhn6|o2
+z_|3)8^`O?CkwLKLo;!m9%l+%z3@r(7tQZ{xeD=mOFt8NA7j}5As~GX?m;LWkMckYp
+S_Q?QKC4;A{pUXO@geCyqnEzn_
+
+literal 0
+HcmV?d00001
+
+diff --git a/procgen/data/assets/kenney/Items/pure_orange_line_diag.png b/procgen/data/assets/kenney/Items/pure_orange_line_diag.png
+new file mode 100644
+index 0000000000000000000000000000000000000000..9de6693558e42744e2ae50cc1e9f8e5735a8a735
+GIT binary patch
+literal 713
+zcmeAS@N?(olHy`uVBq!ia0vp^4Is?H1|$#LC7xzrV4C3R;uumf=k0CJqC*A}tckOY
+zi+SF?xe~21Rp7ue;Y;`LdLKwzxL(4f=kTFrw+-&vo5i&kzWjPEZTi;c|E~(QSrYOl
+zxCTfZxO7m|(UIXj-zp9+#t7>fN*W9auNAr$Br{a=&f~CR+3<Zq=K^I0ciw3nx84_h
+zQRrN7z~{j=7Y6nTaC{+by1&lLt_2(Y83YS{|Kt*2+-$#}(dEGF`~41r8>)WjJFv`|
+z_m5YEaq;xe3`#5Rzj2wsk+nTTEr6vo+D25TY1ZDYVhT-Fd-qDHG)1kA;uUe68>Y|R
+zy})huH|CB7|IP9_1Rd|c-K6Zn@^{<qX$FE{Zmz3la=j40JD*F`F<y3)b_C1ck{jC!
+z1ixHd_?*e*LS4H&kD%l2xkW}EEN{zhT{IBfa&u)mv+ISp<??)@j4}>Fg9J;hKV0#x
+z+HZTJloS`Q!bQOcj28qs82TI-3RsvLlm!@M8W|pNurRnQFjz1#9-zL|oPWo@*_>xP
+zByIn}^FcVKbv+8-MHxg6e*eqD;PT<O9aDqij{R{A3M~EWgc(>4ZobaV(D2~uYnBU@
+f#T?J({bv%KTfF9|f2S!hi86S)`njxgN@xNAW2oPG
+
+literal 0
+HcmV?d00001
+
+diff --git a/procgen/data/assets/kenney/Items/pure_pink_line_diag.png b/procgen/data/assets/kenney/Items/pure_pink_line_diag.png
+new file mode 100644
+index 0000000000000000000000000000000000000000..289fd28baed16a8c992951d6200fad09c3f42d47
+GIT binary patch
+literal 718
+zcmeAS@N?(olHy`uVBq!ia0vp^4Is?H1|$#LC7xzrV4CXb;uumf=k4v&g@+tOSOZ;Z
+zRGeH?oa&11w#J&VskEr1#g*$bb{?Jc$awxkgUugnWb@^v^_C~T`+6<y_|oS8Zwj?p
+z60#<^21p#Zb5PXLkzqaGDh@8j2&)-N8VnEaI*K?RXSgP1BUr+b@YYe-(VbzNl#bw*
+z`-QI^g&Z4a9w--PlyMM(VaI4$`;AMqn~vErx*T}>T-$-=%)dWu0*veH?U`H;yn45v
+zL9n3ehj{=?&%ATY9SiCv3p*;UxVvVigW#3iZy_5vvc6r4YT$VF^;6OWj;yU2rU5La
+zQF~-`nxyt_m3LtI`~6#+fZ&(ATGmZ27xGu<atb@nU%N{^faUMjU&{gnzg$(@-Q;?~
+ze|9dnxTAb-m7W93+wDIO3J7kwtEb-Vav^WGEU&QR?6*~B0W5E~{(cxBcz{u5kl-Z`
+zi=@8Qod?DaKW{7Bgclqi7+!F&Ft{r)STHdj5aeL!b6_Z7VQNqoV328KctCxrvijue
+zIqA#~dF6koe9*?U&TYbPE{3iLzw4M7lz!C8GaeAQ6Q|E0&{Tb$lcDLs#n-G14j<l>
+iGQHTN$r60No{`P|UHs3<bHae>l)=;0&t;ucLK6Tm4DV6^
+
+literal 0
+HcmV?d00001
+
+diff --git a/procgen/data/assets/kenney/Items/pure_teal_line_diag.png b/procgen/data/assets/kenney/Items/pure_teal_line_diag.png
+new file mode 100644
+index 0000000000000000000000000000000000000000..8b0ee1b46ba0fbb765e66c59a74285c61a751df7
+GIT binary patch
+literal 709
+zcmeAS@N?(olHy`uVBq!ia0vp^4Is?H1|$#LC7xzrVCwO7aSW-L^Y(Ul-ys7Aw!}j}
+zYwq0XzpAg8yHI6GMeg}C$|@fo_=`+`xoKPFK3kixQ(J!3Wp8@@>|p)(9lR_FnG;+M
+z3>vmJYd0}6)>y4jlHfRS?V!j(28M5Zi#V*<3a&ipT;R;$&OeL8imBjQLg#{?>z4CR
+z;$WM>d1p4q1BOX(JnPjjeeYdL8E=FgSZ?gw&*akZ=6gPa;Df3^f*MRA=l`>IFkF7U
+zzfsBIOP!np%i--df+|f5qs@gini8Y!MRl4Kf9L1|#lQYcn!wSPbvtVTM_cCaq758v
+z8TacL1WWG!<5g68u`9WZrE|gUzS}}-O?uX4{tGyEz5e05Q0c|0;xg9m1+&lH7Sn6e
+zv-%#>z%lFnpJqj+j9pgh%`O*mzV@|sE;#vW9<PXF@l|^nEhdWwl|h0-PKErneg3m7
+zQ^Tx*#a)5Hf{F2fAO}OA1497|Q-iVqgG?jC0}d7jnn*SM%FkK<IY(hn(ErH?)??Z&
+z>8LrGVFky#_38{tP4erN8Kj!*zjHUVJUCg)v_PSva4!P~$GsT!hI`RY8$SFIPiZf9
+VUi{_TQDE|9@O1TaS?83{1OT#g@@4=4
+
+literal 0
+HcmV?d00001
+
+diff --git a/procgen/env.py b/procgen/env.py
+index be336a3..36509d6 100644
+--- a/procgen/env.py
++++ b/procgen/env.py
+@@ -163,6 +163,9 @@ class BaseProcgenEnv(CEnv):
+             c_func_defs=[
+                 "int get_state(libenv_env *, int, char *, int);",
+                 "void set_state(libenv_env *, int, char *, int);",
++                "int set_object(libenv_env *, int, int, int, int, int);",
++                "int set_object_size(libenv_env *, int, int, int);",
++                "int get_object_pos(libenv_env *, int, int);",
+             ],
+         )
+         # don't use the dict space for actions
+@@ -183,6 +186,74 @@ class BaseProcgenEnv(CEnv):
+             state = states[env_idx]
+             self.call_c_func("set_state", env_idx, state, len(state))
+ 
++    def set_object(self, whichs, xs, ys, presents):
++        """Remove or place GOAL1/GOAL2 on maze_colorsobjects_duel / maze_relation_duel.
++
++        ``whichs[i]`` is 1 (obj1 / GOAL1) or 2 (obj2 / GOAL2).
++        ``presents[i]==0`` removes that object type; ``1`` places at ``(xs[i], ys[i])``.
++        Returns status codes per env (0 ok, -1 unsupported, -2 invalid).
++        """
++        assert (
++            len(whichs) == self.num
++            and len(xs) == self.num
++            and len(ys) == self.num
++            and len(presents) == self.num
++        )
++        out = []
++        for env_idx in range(self.num):
++            rc = self.call_c_func(
++                "set_object",
++                env_idx,
++                int(whichs[env_idx]),
++                int(xs[env_idx]),
++                int(ys[env_idx]),
++                int(presents[env_idx]),
++            )
++            out.append(int(rc))
++        return out
++
++    def set_object_size(self, whichs, sizes):
++        """Set discrete size level for GOAL1/GOAL2 on maze_relation_duel.
++
++        ``whichs[i]`` is 1 (obj1 / GOAL1) or 2 (obj2 / GOAL2).
++        ``sizes[i]`` is in {1, 2, 3} (scale 1.0 / 1.75 / 2.25).
++        Returns status codes per env (0 ok, -1 unsupported, -2 invalid).
++        """
++        assert len(whichs) == self.num and len(sizes) == self.num
++        out = []
++        for env_idx in range(self.num):
++            rc = self.call_c_func(
++                "set_object_size",
++                env_idx,
++                int(whichs[env_idx]),
++                int(sizes[env_idx]),
++            )
++            out.append(int(rc))
++        return out
++
++    def get_object_pos(self, whichs):
++        """Read back GOAL1/GOAL2 grid cell on maze_colorsobjects_duel / maze_relation_duel.
++
++        Returns per-env ``(x, y)``, or ``None`` if ``which`` is invalid or that
++        object type is not currently present (e.g. just removed via ``set_object``).
++        Raises if the underlying game doesn't implement this at all (wrong
++        env_name, or a grid too large for the x*1000+y encoding) -- that's a
++        caller/config error, not a normal "absent" state, and should not be
++        silently indistinguishable from one.
++        """
++        assert len(whichs) == self.num
++        out = []
++        for env_idx in range(self.num):
++            rc = self.call_c_func("get_object_pos", env_idx, int(whichs[env_idx]))
++            if rc == -1:
++                raise RuntimeError(
++                    "get_object_pos unsupported for this env/grid size (env_idx="
++                    f"{env_idx}, which={whichs[env_idx]}); expected "
++                    "maze_colorsobjects_duel or maze_relation_duel with world_dim < 1000"
++                )
++            out.append(None if rc < 0 else (rc // 1000, rc % 1000))
++        return out
++
+     def get_combos(self):
+         return [
+             ("LEFT", "DOWN"),
+@@ -256,6 +327,7 @@ class ProcgenGym3Env(BaseProcgenEnv):
+         world_dim=5,
+         obj1='red_line_diag',
+         obj2='yellow_gem',
++        relation_mode=0,
+         **kwargs,
+     ):
+         self.corruption_type = corruption_type
+@@ -293,6 +365,7 @@ class ProcgenGym3Env(BaseProcgenEnv):
+                 "world_dim": int(world_dim),
+                 "obj1": str(obj1),
+                 "obj2": str(obj2),
++                "relation_mode": int(relation_mode),
+             }
+         super().__init__(num, env_name, options, **kwargs)
+     
+diff --git a/procgen/src/game.cpp b/procgen/src/game.cpp
+index b9b5c46..ab113ee 100644
+--- a/procgen/src/game.cpp
++++ b/procgen/src/game.cpp
+@@ -54,9 +54,6 @@ void Game::parse_options(std::string name, VecOptions opts) {
+     opts.consume_int("step_penalty", &options.step_penalty); // changed
+     opts.consume_int("rand_region", &options.rand_region); //changed new
+     opts.consume_bool("continue_after_coin", &options.continue_after_coin); //changed new
+-    opts.consume_int("world_dim", &options.world_dim); //changed new
+-    opts.consume_string("obj1", &options.obj1); //changed new
+-    opts.consume_string("obj2", &options.obj2); //changed new
+ 
+     int dist_mode = EasyMode;
+     opts.consume_int("distribution_mode", &dist_mode);
+@@ -81,6 +78,12 @@ void Game::parse_options(std::string name, VecOptions opts) {
+     // opts.consume_int("random_percent", &options.random_percent);
+     opts.consume_int("game_type", &game_type);
+ 
++    // Maze duel / relation duel options. Harmless on other envs (stored unused).
++    opts.consume_int("world_dim", &options.world_dim);
++    opts.consume_string("obj1", &options.obj1);
++    opts.consume_string("obj2", &options.obj2);
++    opts.consume_int("relation_mode", &options.relation_mode);
++
+     opts.ensure_empty();
+ }
+ 
+@@ -172,6 +175,21 @@ void Game::observe() {
+     *(int32_t *)(info_bufs[info_name_to_offset.at("prev_level_seed")]) = (int32_t)(prev_level_seed);
+     *(uint8_t *)(info_bufs[info_name_to_offset.at("prev_level_complete")]) = (uint8_t)(step_data.level_complete);
+     *(int32_t *)(info_bufs[info_name_to_offset.at("level_seed")]) = (int32_t)(current_level_seed);
++    // Defaults for non-maze games; maze / maze_aisc overwrite in their observe().
++    // gym3 discrete requires low==0, so absent is (0,0) + cheese_goal_present=0.
++    *(int32_t *)(info_bufs[info_name_to_offset.at("cheese_x")]) = 0;
++    *(int32_t *)(info_bufs[info_name_to_offset.at("cheese_y")]) = 0;
++    *(int32_t *)(info_bufs[info_name_to_offset.at("maze_world_dim")]) = 0;
++    *(int32_t *)(info_bufs[info_name_to_offset.at("cheese_goal_present")]) = 0;
++    // Defaults for non-CoinRun games; coinrun / coinrun_aisc overwrite in observe().
++    *(int32_t *)(info_bufs[info_name_to_offset.at("coin_x")]) = 0;
++    *(int32_t *)(info_bufs[info_name_to_offset.at("coin_y")]) = 0;
++    *(int32_t *)(info_bufs[info_name_to_offset.at("coin_present")]) = 0;
++    *(int32_t *)(info_bufs[info_name_to_offset.at("inv_coin_x")]) = 0;
++    *(int32_t *)(info_bufs[info_name_to_offset.at("inv_coin_y")]) = 0;
++    *(int32_t *)(info_bufs[info_name_to_offset.at("agent_x_fp")]) = 0;
++    *(int32_t *)(info_bufs[info_name_to_offset.at("agent_y_fp")]) = 0;
++    *(int32_t *)(info_bufs[info_name_to_offset.at("level_width")]) = 0;
+ }
+ 
+ void Game::game_init() {
+@@ -197,9 +215,6 @@ void Game::serialize(WriteBuffer *b) {
+     b->write_int(options.step_penalty); // changed
+     b->write_int(options.rand_region); // changed new
+     b->write_int(options.continue_after_coin); // changed new
+-    b->write_int(options.world_dim); // changed new
+-    b->write_string(options.obj1); // changed new
+-    b->write_string(options.obj2); // changed new
+ 
+     b->write_int(options.use_easy_jump);
+     b->write_int(options.plain_assets);
+@@ -266,9 +281,6 @@ void Game::deserialize(ReadBuffer *b) {
+     options.step_penalty = b->read_int();  // changed
+     options.rand_region = b->read_int(); // changed new
+     options.continue_after_coin = b->read_int(); // changed new
+-    options.world_dim = b->read_int(); // changed new
+-    options.obj1 = b->read_string(); // changed new
+-    options.obj2 = b->read_string(); // changed new
+ 
+     options.use_easy_jump = b->read_int();
+     options.plain_assets = b->read_int();
+diff --git a/procgen/src/game.h b/procgen/src/game.h
+index 8b3a192..ee559a0 100644
+--- a/procgen/src/game.h
++++ b/procgen/src/game.h
+@@ -62,6 +62,8 @@ struct GameOptions {
+     int world_dim = 5;
+     std::string obj1 = "red_line_diag";
+     std::string obj2 = "yellow_gem";
++    // maze_relation_duel: 0 = larger (T always larger), 1 = nearer (sizes equal, T nearer)
++    int relation_mode = 0;
+ 
+     // coinrun_old
+     bool use_easy_jump = false;
+@@ -129,6 +131,31 @@ class Game {
+     virtual void game_draw(QPainter &p, const QRect &rect) = 0;
+     virtual void serialize(WriteBuffer *b);
+     virtual void deserialize(ReadBuffer *b);
++    // Maze duel: which=1 GOAL1 (obj1), which=2 GOAL2 (obj2).
++    // present=0 clears that object type; present=1 places at (x,y).
++    // Returns 0 ok, -1 unsupported, -2 invalid cell.
++    virtual int set_object(int which, int x, int y, int present) {
++        (void)which;
++        (void)x;
++        (void)y;
++        (void)present;
++        return -1;
++    }
++    // Relation duel: which=1 GOAL1 / which=2 GOAL2, size in {1,2,3}.
++    // Returns 0 ok, -1 unsupported, -2 invalid.
++    virtual int set_object_size(int which, int size) {
++        (void)which;
++        (void)size;
++        return -1;
++    }
++    // Maze duel: read back GOAL1/GOAL2 grid cell. Encoded as x*1000+y.
++    // Returns -1 if this game doesn't support the feature at all (or the grid
++    // is too large for the encoding); -2 if `which` is invalid or that object
++    // type is not currently present. Matches set_object's -1/-2 convention.
++    virtual int get_object_pos(int which) {
++        (void)which;
++        return -1;
++    }
+ 
+   private:
+     int reset_count = 0;
+diff --git a/procgen/src/games/coinrun.cpp b/procgen/src/games/coinrun.cpp
+index 29f43ac..c9644de 100644
+--- a/procgen/src/games/coinrun.cpp
++++ b/procgen/src/games/coinrun.cpp
+@@ -272,11 +272,11 @@ class CoinRun : public BasicAbstractGame {
+         choose_random_theme(ent);
+     }
+ 
+-    void generate_coin(bool randomize_goal) {
++    void generate_coin(bool use_random_goal) {
+         int RAND_COIN;
+         int FIXED_COIN;
+ 
+-        if (randomize_goal) {
++        if (use_random_goal) {
+             RAND_COIN = GOAL;
+             FIXED_COIN = INVISIBLE_GOAL;
+         } else {
+@@ -566,6 +566,36 @@ class CoinRun : public BasicAbstractGame {
+         *(int32_t *)(info_bufs[info_name_to_offset.at("prev_level/randomize_goal")]) = prev_level_randomize_goal;
+         *(int32_t *)(info_bufs[info_name_to_offset.at("prev_level/total_steps")]) = prev_level_total_steps;
+         *(int32_t *)(info_bufs[info_name_to_offset.at("total_steps")]) = cur_time;
++
++        // Env-truth poses for concept probes (not yellow heuristics).
++        int cx = 0, cy = 0, cp = 0, ix = 0, iy = 0;
++        for (int x = 0; x < main_width; x++) {
++            for (int y = 0; y < main_height; y++) {
++                int t = get_obj(x, y);
++                if (t == GOAL) {
++                    cx = x;
++                    cy = y;
++                    cp = 1;
++                } else if (t == INVISIBLE_GOAL) {
++                    ix = x;
++                    iy = y;
++                }
++            }
++        }
++        *(int32_t *)(info_bufs[info_name_to_offset.at("coin_x")]) = cx;
++        *(int32_t *)(info_bufs[info_name_to_offset.at("coin_y")]) = cy;
++        *(int32_t *)(info_bufs[info_name_to_offset.at("coin_present")]) = cp;
++        *(int32_t *)(info_bufs[info_name_to_offset.at("inv_coin_x")]) = ix;
++        *(int32_t *)(info_bufs[info_name_to_offset.at("inv_coin_y")]) = iy;
++        int ax = (int)(agent->x * 100.0f);
++        int ay = (int)(agent->y * 100.0f);
++        if (ax < 0)
++            ax = 0;
++        if (ay < 0)
++            ay = 0;
++        *(int32_t *)(info_bufs[info_name_to_offset.at("agent_x_fp")]) = ax;
++        *(int32_t *)(info_bufs[info_name_to_offset.at("agent_y_fp")]) = ay;
++        *(int32_t *)(info_bufs[info_name_to_offset.at("level_width")]) = main_width;
+     }
+ 
+ };
+diff --git a/procgen/src/games/coinrun_aisc.cpp b/procgen/src/games/coinrun_aisc.cpp
+index 216485e..8ad052f 100644
+--- a/procgen/src/games/coinrun_aisc.cpp
++++ b/procgen/src/games/coinrun_aisc.cpp
+@@ -553,6 +553,36 @@ class CoinRunAISC : public BasicAbstractGame {
+         *(int32_t *)(info_bufs[info_name_to_offset.at("prev_level/randomize_goal")]) = prev_level_randomize_goal;
+         *(int32_t *)(info_bufs[info_name_to_offset.at("prev_level/total_steps")]) = prev_level_total_steps;
+         *(int32_t *)(info_bufs[info_name_to_offset.at("total_steps")]) = cur_time;
++
++        // Env-truth poses for concept probes (not yellow heuristics).
++        int cx = 0, cy = 0, cp = 0, ix = 0, iy = 0;
++        for (int x = 0; x < main_width; x++) {
++            for (int y = 0; y < main_height; y++) {
++                int t = get_obj(x, y);
++                if (t == GOAL) {
++                    cx = x;
++                    cy = y;
++                    cp = 1;
++                } else if (t == INVISIBLE_GOAL) {
++                    ix = x;
++                    iy = y;
++                }
++            }
++        }
++        *(int32_t *)(info_bufs[info_name_to_offset.at("coin_x")]) = cx;
++        *(int32_t *)(info_bufs[info_name_to_offset.at("coin_y")]) = cy;
++        *(int32_t *)(info_bufs[info_name_to_offset.at("coin_present")]) = cp;
++        *(int32_t *)(info_bufs[info_name_to_offset.at("inv_coin_x")]) = ix;
++        *(int32_t *)(info_bufs[info_name_to_offset.at("inv_coin_y")]) = iy;
++        int ax = (int)(agent->x * 100.0f);
++        int ay = (int)(agent->y * 100.0f);
++        if (ax < 0)
++            ax = 0;
++        if (ay < 0)
++            ay = 0;
++        *(int32_t *)(info_bufs[info_name_to_offset.at("agent_x_fp")]) = ax;
++        *(int32_t *)(info_bufs[info_name_to_offset.at("agent_y_fp")]) = ay;
++        *(int32_t *)(info_bufs[info_name_to_offset.at("level_width")]) = main_width;
+     }
+ };
+ 
+diff --git a/procgen/src/games/coinrun_mod_wall.cpp b/procgen/src/games/coinrun_mod_wall.cpp
+index 31f6e48..1e4c7f8 100644
+--- a/procgen/src/games/coinrun_mod_wall.cpp
++++ b/procgen/src/games/coinrun_mod_wall.cpp
+@@ -273,11 +273,11 @@ class CoinRunModWall : public BasicAbstractGame {
+         choose_random_theme(ent);
+     }
+ 
+-    void generate_coin(bool randomize_goal) {
++    void generate_coin(bool use_random_goal) {
+         int RAND_COIN;
+         int FIXED_COIN;
+ 
+-        if (randomize_goal) {
++        if (use_random_goal) {
+             RAND_COIN = GOAL;
+             FIXED_COIN = INVISIBLE_GOAL;
+         } else {
+diff --git a/procgen/src/games/maze_colorsobjects_duel.cpp b/procgen/src/games/maze_colorsobjects_duel.cpp
+index 5947713..dd489c5 100644
+--- a/procgen/src/games/maze_colorsobjects_duel.cpp
++++ b/procgen/src/games/maze_colorsobjects_duel.cpp
+@@ -148,6 +148,54 @@ class MazeColorsObjectsDuel : public BasicAbstractGame {
+         maze_dim = b->read_int();
+         world_dim = b->read_int();
+     }
++
++    // Remove or place GOAL1 (which=1) / GOAL2 (which=2). Maze L5 analogue of Coin set_coin.
++    int set_object(int which, int x, int y, int present) override {
++        int target = (which == 1) ? GOAL1 : ((which == 2) ? GOAL2 : 0);
++        if (target == 0) {
++            return -2;
++        }
++        for (int ix = 0; ix < main_width; ix++) {
++            for (int iy = 0; iy < main_height; iy++) {
++                if (get_obj(ix, iy) == target) {
++                    set_obj(ix, iy, SPACE);
++                }
++            }
++        }
++        if (!present) {
++            return 0;
++        }
++        if (x < 0 || y < 0 || x >= main_width || y >= main_height) {
++            return -2;
++        }
++        int cur = get_obj(x, y);
++        if (cur == WALL_OBJ || cur == GOAL1 || cur == GOAL2) {
++            return -2;
++        }
++        set_obj(x, y, target);
++        return 0;
++    }
++
++    // Read back GOAL1/GOAL2 grid cell without moving/rendering it. Encoded x*1000+y.
++    // -2 for invalid `which` or absent object, matching set_object's own convention
++    // (see game.h) rather than the base class's "unsupported" -1.
++    int get_object_pos(int which) override {
++        int target = (which == 1) ? GOAL1 : ((which == 2) ? GOAL2 : 0);
++        if (target == 0) {
++            return -2;
++        }
++        if (main_width >= 1000 || main_height >= 1000) {
++            return -1;  // encoding cannot represent a grid this large
++        }
++        for (int ix = 0; ix < main_width; ix++) {
++            for (int iy = 0; iy < main_height; iy++) {
++                if (get_obj(ix, iy) == target) {
++                    return ix * 1000 + iy;
++                }
++            }
++        }
++        return -2;
++    }
+ };
+ 
+ REGISTER_GAME(NAME, MazeColorsObjectsDuel);
+diff --git a/procgen/src/games/maze_relation_duel.cpp b/procgen/src/games/maze_relation_duel.cpp
+new file mode 100644
+index 0000000..246fc2b
+--- /dev/null
++++ b/procgen/src/games/maze_relation_duel.cpp
+@@ -0,0 +1,333 @@
++#include "../basic-abstract-game.h"
++#include "../mazegen.h"
++#include <cmath>
++
++const std::string NAME = "maze_relation_duel";
++
++const float REWARD1 = 10.0;
++const float REWARD2 = -10.0;
++
++const int GOAL1 = 2;
++const int GOAL2 = 3;
++
++// relation_mode: 0 = larger (T always larger), 1 = nearer (sizes equal, T always nearer)
++const int RELATION_LARGER = 0;
++const int RELATION_NEARER = 1;
++
++class MazeRelationDuel : public BasicAbstractGame {
++  public:
++    std::shared_ptr<MazeGen> maze_gen_aisc;
++    int maze_dim = 0;
++    int world_dim = 0;
++    int goal1_size = 1;  // discrete size level in {1,2,3}
++    int goal2_size = 1;
++    int goal1_x = 0;
++    int goal1_y = 0;
++    int goal2_x = 0;
++    int goal2_y = 0;
++
++    MazeRelationDuel()
++        : BasicAbstractGame(NAME) {
++        timeout = 500;
++        random_agent_start = false;
++        has_useful_vel_info = false;
++
++        out_of_bounds_object = WALL_OBJ;
++        visibility = 8.0;
++    }
++
++    static float size_to_scale(int size) {
++        if (size <= 1)
++            return 1.0f;
++        if (size == 2)
++            return 1.75f;
++        return 2.25f;  // size >= 3
++    }
++
++    void load_background_images() override {
++        main_bg_images_ptr = &topdown_backgrounds;
++    }
++
++    void asset_for_type(int type, std::vector<std::string> &names) override {
++        if (type == WALL_OBJ) {
++            names.push_back("kenney/Ground/Sand/sandCenter.png");
++        } else if (type == GOAL1) {
++            names.push_back("kenney/Items/pure_" + options.obj1 + ".png");
++        } else if (type == GOAL2) {
++            names.push_back("kenney/Items/pure_" + options.obj2 + ".png");
++        } else if (type == PLAYER) {
++            names.push_back("kenney/Enemies/mouse_move.png");
++        }
++    }
++
++    QRectF get_adjusted_image_rect(int type, const QRectF &rect) override {
++        float s = 1.0f;
++        if (type == GOAL1) {
++            s = size_to_scale(goal1_size);
++        } else if (type == GOAL2) {
++            s = size_to_scale(goal2_size);
++        } else {
++            return rect;
++        }
++        if (s <= 1.0f + 1e-6f) {
++            return rect;
++        }
++        float cx = rect.x() + rect.width() * 0.5f;
++        float cy = rect.y() + rect.height() * 0.5f;
++        float w = rect.width() * s;
++        float h = rect.height() * s;
++        return QRectF(cx - w * 0.5f, cy - h * 0.5f, w, h);
++    }
++
++    void choose_world_dim() override {
++        int dist_diff = options.distribution_mode;
++
++        if (dist_diff == EasyMode) {
++            world_dim = options.world_dim;
++        } else if (dist_diff == HardMode) {
++            world_dim = 25;
++        } else if (dist_diff == MemoryMode) {
++            world_dim = 31;
++        }
++
++        main_width = world_dim;
++        main_height = world_dim;
++    }
++
++    void find_object(int target, int *ox, int *oy) {
++        *ox = -1;
++        *oy = -1;
++        for (int ix = 0; ix < main_width; ix++) {
++            for (int iy = 0; iy < main_height; iy++) {
++                if (get_obj(ix, iy) == target) {
++                    *ox = ix;
++                    *oy = iy;
++                    return;
++                }
++            }
++        }
++    }
++
++    float euclid_to_agent(int x, int y) {
++        float ax = agent->x;
++        float ay = agent->y;
++        float dx = (x + 0.5f) - ax;
++        float dy = (y + 0.5f) - ay;
++        return sqrtf(dx * dx + dy * dy);
++    }
++
++    void swap_goal_cells() {
++        if (goal1_x < 0 || goal2_x < 0) {
++            return;
++        }
++        set_obj(goal1_x, goal1_y, GOAL2);
++        set_obj(goal2_x, goal2_y, GOAL1);
++        int tx = goal1_x, ty = goal1_y;
++        goal1_x = goal2_x;
++        goal1_y = goal2_y;
++        goal2_x = tx;
++        goal2_y = ty;
++    }
++
++    void apply_relation_regime() {
++        find_object(GOAL1, &goal1_x, &goal1_y);
++        find_object(GOAL2, &goal2_x, &goal2_y);
++        if (goal1_x < 0 || goal2_x < 0) {
++            return;
++        }
++
++        int mode = options.relation_mode;
++        if (mode == RELATION_NEARER) {
++            goal1_size = 1;
++            goal2_size = 1;
++            float d1 = euclid_to_agent(goal1_x, goal1_y);
++            float d2 = euclid_to_agent(goal2_x, goal2_y);
++            // T (GOAL1) must be nearer. Swap cells if not.
++            if (d1 > d2 + 1e-4f) {
++                swap_goal_cells();
++            }
++        } else {
++            // RELATION_LARGER (default): T always larger. Sizes fixed; placement free.
++            goal1_size = 2;
++            goal2_size = 1;
++        }
++    }
++
++    void game_reset() override {
++        BasicAbstractGame::game_reset();
++
++        grid_step = true;
++
++        maze_dim = world_dim;
++        int margin = (world_dim - maze_dim) / 2;
++
++        std::shared_ptr<MazeGen> _maze_gen(new MazeGen(&rand_gen, maze_dim));
++        maze_gen_aisc = _maze_gen;
++
++        options.center_agent = options.distribution_mode == MemoryMode;
++
++        agent->rx = .5;
++        agent->ry = .5;
++        agent->x = margin + .5;
++        agent->y = margin + .5;
++
++        maze_gen_aisc->generate_maze_no_dead_ends();
++        maze_gen_aisc->place_objects(GOAL1, 1);
++        maze_gen_aisc->place_objects(GOAL2, 1);
++
++        for (int i = 0; i < grid_size; i++) {
++            set_obj(i, WALL_OBJ);
++        }
++
++        for (int i = 0; i < maze_dim; i++) {
++            for (int j = 0; j < maze_dim; j++) {
++                int type = maze_gen_aisc->grid.get(i + MAZE_OFFSET, j + MAZE_OFFSET);
++                set_obj(margin + i, margin + j, type);
++            }
++        }
++
++        if (margin > 0) {
++            for (int i = 0; i < maze_dim + 2; i++) {
++                set_obj(margin - 1, margin + i - 1, WALL_OBJ);
++                set_obj(margin + maze_dim, margin + i - 1, WALL_OBJ);
++
++                set_obj(margin + i - 1, margin - 1, WALL_OBJ);
++                set_obj(margin + i - 1, margin + maze_dim, WALL_OBJ);
++            }
++        }
++
++        apply_relation_regime();
++    }
++
++    void set_action_xy(int move_action) override {
++        BasicAbstractGame::set_action_xy(move_action);
++        if (action_vx != 0)
++            action_vy = 0;
++    }
++
++    void game_step() override {
++        BasicAbstractGame::game_step();
++
++        if (action_vx > 0)
++            agent->is_reflected = true;
++        if (action_vx < 0)
++            agent->is_reflected = false;
++
++        int ix = int(agent->x);
++        int iy = int(agent->y);
++
++        if (get_obj(ix, iy) == GOAL1) {
++            set_obj(ix, iy, SPACE);
++            step_data.reward += REWARD1;
++            step_data.level_complete = true;
++        }
++
++        if (get_obj(ix, iy) == GOAL2) {
++            set_obj(ix, iy, SPACE);
++            step_data.reward += REWARD2;
++            step_data.level_complete = true;
++        }
++
++        step_data.done = step_data.reward != 0;
++    }
++
++    void serialize(WriteBuffer *b) override {
++        BasicAbstractGame::serialize(b);
++        b->write_int(maze_dim);
++        b->write_int(world_dim);
++        b->write_int(goal1_size);
++        b->write_int(goal2_size);
++        b->write_int(goal1_x);
++        b->write_int(goal1_y);
++        b->write_int(goal2_x);
++        b->write_int(goal2_y);
++    }
++
++    void deserialize(ReadBuffer *b) override {
++        BasicAbstractGame::deserialize(b);
++        maze_dim = b->read_int();
++        world_dim = b->read_int();
++        goal1_size = b->read_int();
++        goal2_size = b->read_int();
++        goal1_x = b->read_int();
++        goal1_y = b->read_int();
++        goal2_x = b->read_int();
++        goal2_y = b->read_int();
++    }
++
++    int set_object(int which, int x, int y, int present) override {
++        int target = (which == 1) ? GOAL1 : ((which == 2) ? GOAL2 : 0);
++        if (target == 0) {
++            return -2;
++        }
++        for (int ix = 0; ix < main_width; ix++) {
++            for (int iy = 0; iy < main_height; iy++) {
++                if (get_obj(ix, iy) == target) {
++                    set_obj(ix, iy, SPACE);
++                }
++            }
++        }
++        if (which == 1) {
++            goal1_x = -1;
++            goal1_y = -1;
++        } else {
++            goal2_x = -1;
++            goal2_y = -1;
++        }
++        if (!present) {
++            return 0;
++        }
++        if (x < 0 || y < 0 || x >= main_width || y >= main_height) {
++            return -2;
++        }
++        int cur = get_obj(x, y);
++        if (cur == WALL_OBJ || cur == GOAL1 || cur == GOAL2) {
++            return -2;
++        }
++        set_obj(x, y, target);
++        if (which == 1) {
++            goal1_x = x;
++            goal1_y = y;
++        } else {
++            goal2_x = x;
++            goal2_y = y;
++        }
++        return 0;
++    }
++
++    // Read back GOAL1/GOAL2 grid cell. Positions are already tracked (kept current
++    // by set_object and swap_goal_cells), so this is O(1), no grid scan needed.
++    // Encoded x*1000+y; -2 for invalid `which` or absent object (see game.h).
++    int get_object_pos(int which) override {
++        if (which != 1 && which != 2) {
++            return -2;
++        }
++        if (main_width >= 1000 || main_height >= 1000) {
++            return -1;  // encoding cannot represent a grid this large
++        }
++        int gx = (which == 1) ? goal1_x : goal2_x;
++        int gy = (which == 1) ? goal1_y : goal2_y;
++        if (gx < 0 || gy < 0) {
++            return -2;
++        }
++        return gx * 1000 + gy;
++    }
++
++    // Discrete size levels {1,2,3}. which=1 GOAL1 / which=2 GOAL2.
++    int set_object_size(int which, int size) override {
++        if (size < 1 || size > 3) {
++            return -2;
++        }
++        if (which == 1) {
++            goal1_size = size;
++            return 0;
++        }
++        if (which == 2) {
++            goal2_size = size;
++            return 0;
++        }
++        return -2;
++    }
++};
++
++REGISTER_GAME(NAME, MazeRelationDuel);
+diff --git a/procgen/src/resources.cpp b/procgen/src/resources.cpp
+index 62d0541..a37d714 100644
+--- a/procgen/src/resources.cpp
++++ b/procgen/src/resources.cpp
+@@ -375,6 +375,16 @@ void images_load() {
+         "kenney/Items/pure_white_line_diag.png",
+         "kenney/Items/pure_yellow_gem.png",
+         "kenney/Items/pure_yellow_line_diag.png",
++        "kenney/Items/pure_orange_line_diag.png",
++        "kenney/Items/pure_magenta_line_diag.png",
++        "kenney/Items/pure_lime_line_diag.png",
++        "kenney/Items/pure_teal_line_diag.png",
++        "kenney/Items/pure_brown_line_diag.png",
++        "kenney/Items/pure_navy_line_diag.png",
++        "kenney/Items/pure_pink_line_diag.png",
++        "kenney/Items/pure_olive_line_diag.png",
++        "kenney/Items/pure_coral_line_diag.png",
++        "kenney/Items/pure_indigo_line_diag.png",
+         "kenney/Items/red_line_diag.png",
+         "kenney/Enemies/snail_shell.png",
+         "kenney/Enemies/fly_move.png",
+diff --git a/procgen/src/vecgame.cpp b/procgen/src/vecgame.cpp
+index 8702d50..979e5ae 100644
+--- a/procgen/src/vecgame.cpp
++++ b/procgen/src/vecgame.cpp
+@@ -354,6 +354,134 @@ VecGame::VecGame(int _nenvs, VecOptions opts) {
+ 	    info_types.push_back(s);
+ 	}
+ 
++    // Maze / maze_aisc: grid cell of the GOAL (cheese). Valid when cheese_goal_present=1.
++    // gym3 discrete info requires low==0 (cannot use -1 sentinel).
++    {
++        struct libenv_tensortype s;
++        strcpy(s.name, "cheese_x");
++        s.scalar_type = LIBENV_SCALAR_TYPE_DISCRETE;
++        s.dtype = LIBENV_DTYPE_INT32;
++        s.ndim = 0,
++        s.low.int32 = 0;
++        s.high.int32 = INT32_MAX;
++        info_types.push_back(s);
++    }
++    {
++        struct libenv_tensortype s;
++        strcpy(s.name, "cheese_y");
++        s.scalar_type = LIBENV_SCALAR_TYPE_DISCRETE;
++        s.dtype = LIBENV_DTYPE_INT32;
++        s.ndim = 0,
++        s.low.int32 = 0;
++        s.high.int32 = INT32_MAX;
++        info_types.push_back(s);
++    }
++    {
++        struct libenv_tensortype s;
++        strcpy(s.name, "maze_world_dim");
++        s.scalar_type = LIBENV_SCALAR_TYPE_DISCRETE;
++        s.dtype = LIBENV_DTYPE_INT32;
++        s.ndim = 0,
++        s.low.int32 = 0;
++        s.high.int32 = INT32_MAX;
++        info_types.push_back(s);
++    }
++    {
++        // 1 iff get_obj(cheese_x, cheese_y) == GOAL at observe time.
++        struct libenv_tensortype s;
++        strcpy(s.name, "cheese_goal_present");
++        s.scalar_type = LIBENV_SCALAR_TYPE_DISCRETE;
++        s.dtype = LIBENV_DTYPE_INT32;
++        s.ndim = 0,
++        s.low.int32 = 0;
++        s.high.int32 = 1;
++        info_types.push_back(s);
++    }
++
++    // CoinRun / coinrun_aisc: visible GOAL grid cell + invisible end-coin + agent pose.
++    // gym3 discrete requires low==0; absent coin is (0,0) + coin_present=0.
++    {
++        struct libenv_tensortype s;
++        strcpy(s.name, "coin_x");
++        s.scalar_type = LIBENV_SCALAR_TYPE_DISCRETE;
++        s.dtype = LIBENV_DTYPE_INT32;
++        s.ndim = 0,
++        s.low.int32 = 0;
++        s.high.int32 = INT32_MAX;
++        info_types.push_back(s);
++    }
++    {
++        struct libenv_tensortype s;
++        strcpy(s.name, "coin_y");
++        s.scalar_type = LIBENV_SCALAR_TYPE_DISCRETE;
++        s.dtype = LIBENV_DTYPE_INT32;
++        s.ndim = 0,
++        s.low.int32 = 0;
++        s.high.int32 = INT32_MAX;
++        info_types.push_back(s);
++    }
++    {
++        struct libenv_tensortype s;
++        strcpy(s.name, "coin_present");
++        s.scalar_type = LIBENV_SCALAR_TYPE_DISCRETE;
++        s.dtype = LIBENV_DTYPE_INT32;
++        s.ndim = 0,
++        s.low.int32 = 0;
++        s.high.int32 = 1;
++        info_types.push_back(s);
++    }
++    {
++        struct libenv_tensortype s;
++        strcpy(s.name, "inv_coin_x");
++        s.scalar_type = LIBENV_SCALAR_TYPE_DISCRETE;
++        s.dtype = LIBENV_DTYPE_INT32;
++        s.ndim = 0,
++        s.low.int32 = 0;
++        s.high.int32 = INT32_MAX;
++        info_types.push_back(s);
++    }
++    {
++        struct libenv_tensortype s;
++        strcpy(s.name, "inv_coin_y");
++        s.scalar_type = LIBENV_SCALAR_TYPE_DISCRETE;
++        s.dtype = LIBENV_DTYPE_INT32;
++        s.ndim = 0,
++        s.low.int32 = 0;
++        s.high.int32 = INT32_MAX;
++        info_types.push_back(s);
++    }
++    {
++        // Fixed-point world coords: agent_x_fp = (int)(agent->x * 100).
++        struct libenv_tensortype s;
++        strcpy(s.name, "agent_x_fp");
++        s.scalar_type = LIBENV_SCALAR_TYPE_DISCRETE;
++        s.dtype = LIBENV_DTYPE_INT32;
++        s.ndim = 0,
++        s.low.int32 = 0;
++        s.high.int32 = INT32_MAX;
++        info_types.push_back(s);
++    }
++    {
++        struct libenv_tensortype s;
++        strcpy(s.name, "agent_y_fp");
++        s.scalar_type = LIBENV_SCALAR_TYPE_DISCRETE;
++        s.dtype = LIBENV_DTYPE_INT32;
++        s.ndim = 0,
++        s.low.int32 = 0;
++        s.high.int32 = INT32_MAX;
++        info_types.push_back(s);
++    }
++    {
++        struct libenv_tensortype s;
++        strcpy(s.name, "level_width");
++        s.scalar_type = LIBENV_SCALAR_TYPE_DISCRETE;
++        s.dtype = LIBENV_DTYPE_INT32;
++        s.ndim = 0,
++        s.low.int32 = 0;
++        s.high.int32 = INT32_MAX;
++        info_types.push_back(s);
++    }
++
+ 
+     int level_seed_low = 0;
+     int level_seed_high = 0;
+@@ -528,4 +656,33 @@ extern "C" {
+         // next time VecGame::observe() is called, the correct data will be in the buffers
+         venv->games.at(env_idx)->observe();
+     }
++
++    // Maze duel: which=1 GOAL1 (obj1/goal), which=2 GOAL2 (obj2/proxy).
++    LIBENV_API int set_object(libenv_env *handle, int env_idx, int which, int x, int y, int present) {
++        auto venv = (VecGame *)(handle);
++        venv->wait_for_stepping_threads();
++        int rc = venv->games.at(env_idx)->set_object(which, x, y, present);
++        if (rc == 0) {
++            venv->games.at(env_idx)->observe();
++        }
++        return rc;
++    }
++
++    // Relation duel: resize GOAL1/GOAL2 (size in {1,2,3}).
++    LIBENV_API int set_object_size(libenv_env *handle, int env_idx, int which, int size) {
++        auto venv = (VecGame *)(handle);
++        venv->wait_for_stepping_threads();
++        int rc = venv->games.at(env_idx)->set_object_size(which, size);
++        if (rc == 0) {
++            venv->games.at(env_idx)->observe();
++        }
++        return rc;
++    }
++
++    // Maze duel: read back GOAL1/GOAL2 grid cell (encoded x*1000+y). Read-only, no observe().
++    LIBENV_API int get_object_pos(libenv_env *handle, int env_idx, int which) {
++        auto venv = (VecGame *)(handle);
++        venv->wait_for_stepping_threads();
++        return venv->games.at(env_idx)->get_object_pos(which);
++    }
+ }

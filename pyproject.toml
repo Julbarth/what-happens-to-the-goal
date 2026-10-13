@@ -1,0 +1,47 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gm-geometry"
+version = "0.1.0"
+description = "What happens to the goal in goal-misgeneralizing RL agents: Procgen and robotics analyses"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.9"
+dependencies = [
+    "numpy",
+    "scipy",
+    "scikit-learn",
+    "matplotlib",
+    "pandas",
+    "pyyaml",
+    "tqdm",
+    "torch",
+    "pillow",
+]
+
+[project.optional-dependencies]
+procgen = ["gym3==0.3.3", "gym==0.23.1"]
+robotics = [
+    "torch>=2.7,<2.9",
+    "mani_skill==3.0.1",
+    "sapien==3.0.3",
+    "gymnasium==1.3.0",
+    "pytorch-kinematics==0.7.6",
+    "tyro",
+    "pandas==2.3.3",
+    "imageio[ffmpeg]",
+]
+isaac = ["imageio[ffmpeg]"]
+dev = ["ruff"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"gm_robotics.envs" = ["start_bank.npz"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py39"

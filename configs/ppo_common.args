@@ -1,0 +1,1 @@
+--num_envs=256 --update_epochs=8 --num_minibatches=8 --num_steps=50 --num_eval_envs=64 --eval_freq=10 --control_mode=pd_joint_delta_pos
