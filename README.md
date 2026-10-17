@@ -2,7 +2,7 @@
 
 Julia Barth, Armin Sommer, Kunvar Thaman, Jannik Schilling
 
-Paper: [arXiv:XXXX.XXXXX](https://arxiv.org/abs/XXXX.XXXXX)
+Paper: [arXiv:2610.19731](https://arxiv.org/abs/2610.19731)
 
 Goal misgeneralization (GM) agents behave competently out of distribution but do not pursue the intended goal. Across
 three Procgen environments (Maze, Coin, Attribute Maze) and five robot tasks (four ManiSkill arm tasks and an Isaac Lab
@@ -100,7 +100,7 @@ python -m gm_robotics.isaac.ppo_gm_nav --variant gm --seed 0 --total_timesteps 3
 @article{barth2026goal,
   title   = {What Happens to the Goal? Distinct Failures of Policy Alignment in Goal Misgeneralization},
   author  = {Barth, Julia and Sommer, Armin and Thaman, Kunvar and Schilling, Jannik},
-  journal = {arXiv preprint arXiv:XXXX.XXXXX},
+  journal = {arXiv preprint arXiv:2610.19731},
   year    = {2026}
 }
 ```
